@@ -1,0 +1,73 @@
+# docker-compose.yml
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongo:27017/shopify_autopilot
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api/src:/app/apps/api/src        # hot-reload in dev
+      - ./packages:/app/packages
+    command: npm run dev --workspace=apps/api
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile            # same image, different command
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongo:27017/shopify_autopilot
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/worker/src:/app/apps/worker/src
+      - ./packages:/app/packages
+    command: npm run dev --workspace=apps/worker
+
+volumes:
+  mongo_data:
+  redis_data:

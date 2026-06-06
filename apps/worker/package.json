@@ -1,0 +1,19 @@
+{
+  "name": "@shopify-autopilot/worker",
+  "version": "1.0.0",
+  "main": "src/worker.js",
+  "scripts": {
+    "start": "node src/worker.js",
+    "dev": "nodemon src/worker.js"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
+    "@shopify-autopilot/shared": "*",
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.3.0",
+    "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

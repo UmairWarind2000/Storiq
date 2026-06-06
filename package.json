@@ -1,0 +1,22 @@
+
+{
+  "name": "shopify-autopilot",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api":    "npm run dev --workspace=apps/api",
+    "dev:worker": "npm run dev --workspace=apps/worker",
+    "dev:web":    "npm run dev --workspace=apps/web",
+    "lint":       "eslint . --ext .js,.jsx",
+    "format":     "prettier --write ."
+  },
+  "devDependencies": {
+    "eslint":                      "^8.57.0",
+    "eslint-config-prettier":      "^9.1.0",
+    "eslint-plugin-import":        "^2.29.1",
+    "prettier":                    "^3.2.5"
+  }
+}
