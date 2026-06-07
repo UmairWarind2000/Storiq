@@ -62,16 +62,12 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check
 app.get('/health', async (req, res) => {
-  try {
-    const queues = await getQueuesHealth();
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      queues,
-    });
-  } catch {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  }
+  // Respond immediately — don't wait for Redis
+  // Railway healthcheck needs a fast response
+  res.json({
+    status:    'ok',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // API Routes
