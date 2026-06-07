@@ -99,6 +99,7 @@ export default function Layout({ children }) {
           position: 'fixed',
           top: 0, left: 0, bottom: 0,
           zIndex: 50,
+          height: '100vh',
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
           boxShadow: mobileOpen ? '4px 0 24px rgba(0,0,0,0.12)' : 'none',
