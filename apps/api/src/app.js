@@ -83,22 +83,13 @@ app.use('/api/billing', require('./routes/billing'));
 const frontendPath = path.join(__dirname, '../../../apps/web/dist');
 app.use(express.static(frontendPath));
 
-// For any non-API route, serve the frontend index.html
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api/')) return next();
-  res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
-    if (err) {
-      // Frontend not built yet — send a helpful message
-      res.status(200).send(`
-        <html>
-          <body style="font-family:sans-serif;padding:40px;text-align:center">
-            <h2>✅ Vendra API is running</h2>
-            <p>Frontend not built yet. Run: <code>npm run build --workspace=apps/web</code></p>
-            <p>Or in dev mode, open <a href="http://localhost:5173">localhost:5173</a></p>
-          </body>
-        </html>
-      `);
-    }
+
+app.get('/', (req, res) => {
+  res.json({
+    name:    'Storiq API',
+    status:  'running',
+    version: '1.0.0',
+    health:  '/health',
   });
 });
 
