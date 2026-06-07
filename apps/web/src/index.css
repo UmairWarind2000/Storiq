@@ -71,3 +71,34 @@ body {
 
 /* Number font */
 .num { font-family: 'DM Mono', monospace; }
+
+/* ── Responsive utilities ── */
+
+/* Tablet — 768px to 1023px */
+@media (max-width: 1023px) {
+  .hide-mobile { display: none !important; }
+}
+
+/* Mobile — up to 767px */
+@media (max-width: 767px) {
+  html { font-size: 14px; }
+
+  .grid-2-col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid-3-col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid-4-col {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* Very small — up to 400px */
+@media (max-width: 400px) {
+  .grid-4-col {
+    grid-template-columns: 1fr !important;
+  }
+}

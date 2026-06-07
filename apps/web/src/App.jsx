@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Campaigns from './pages/Campaigns';
 import Alerts    from './pages/Alerts';
 import Billing   from './pages/Billing';
+import Contact   from './pages/Contact';
 import Login     from './pages/Login';
 
 function TokenHandler() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/campaigns" element={<PrivateRoute><Campaigns /></PrivateRoute>} />
         <Route path="/alerts"    element={<PrivateRoute><Alerts /></PrivateRoute>} />
         <Route path="/billing"   element={<PrivateRoute><Billing /></PrivateRoute>} />
+        <Route path="/contact"   element={<PrivateRoute><Contact /></PrivateRoute>} />
         <Route path="*"          element={<Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>

@@ -10,7 +10,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import apiClient from '../lib/apiClient';
-import Layout    from '../components/Layout';
+import Layout from '../components/Layout';
 import { Card, Badge, Spinner, PageHeader } from '../components/ui';
 
 function fmt(n) {
@@ -46,19 +46,19 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey:        ['dashboard'],
-    queryFn:         () => apiClient.get('/api/dashboard').then(r => r.data),
+    queryKey: ['dashboard'],
+    queryFn: () => apiClient.get('/api/dashboard').then(r => r.data),
     refetchInterval: 5 * 60 * 1000,
   });
 
   const { data: alertsData } = useQuery({
     queryKey: ['alerts'],
-    queryFn:  () => apiClient.get('/api/alerts/restock').then(r => r.data),
+    queryFn: () => apiClient.get('/api/alerts/restock').then(r => r.data),
   });
 
   const refreshAi = useMutation({
     mutationFn: () => apiClient.post('/api/dashboard/refresh-ai'),
-    onSuccess:  () => queryClient.invalidateQueries(['dashboard']),
+    onSuccess: () => queryClient.invalidateQueries(['dashboard']),
   });
 
   const { metrics, revenueChart = [], topProducts = [], aiSummary } = data || {};
@@ -69,33 +69,33 @@ export default function Dashboard() {
 
   const STATS = [
     {
-      label:   'Revenue (30d)',
-      value:   fmt(metrics?.revenue30d),
-      sub:     `${metrics?.orders30d || 0} orders`,
-      icon:    DollarSign,
-      delay:   'delay-1',
+      label: 'Revenue (30d)',
+      value: fmt(metrics?.revenue30d),
+      sub: `${metrics?.orders30d || 0} orders`,
+      icon: DollarSign,
+      delay: 'delay-1',
     },
     {
-      label:   'This week',
-      value:   fmt(metrics?.revenue7d),
-      sub:     growth ? `${growth > 0 ? '+' : ''}${growth}% vs avg` : '7-day total',
-      icon:    TrendingUp,
-      trend:   growth ? parseFloat(growth) : null,
-      delay:   'delay-2',
+      label: 'This week',
+      value: fmt(metrics?.revenue7d),
+      sub: growth ? `${growth > 0 ? '+' : ''}${growth}% vs avg` : '7-day total',
+      icon: TrendingUp,
+      trend: growth ? parseFloat(growth) : null,
+      delay: 'delay-2',
     },
     {
-      label:   'Avg order',
-      value:   fmt(metrics?.avgOrderValue),
-      sub:     'per transaction',
-      icon:    ShoppingCart,
-      delay:   'delay-3',
+      label: 'Avg order',
+      value: fmt(metrics?.avgOrderValue),
+      sub: 'per transaction',
+      icon: ShoppingCart,
+      delay: 'delay-3',
     },
     {
-      label:   'Campaigns',
-      value:   metrics?.activeCampaigns || 0,
-      sub:     'active discounts',
-      icon:    Zap,
-      delay:   'delay-4',
+      label: 'Campaigns',
+      value: metrics?.activeCampaigns || 0,
+      sub: 'active discounts',
+      icon: Zap,
+      delay: 'delay-4',
     },
   ];
 
@@ -118,8 +118,12 @@ export default function Dashboard() {
       />
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}
-        className="grid-cols-2 lg:grid-cols-4">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 14,
+        marginBottom: 24,
+      }}>
         {STATS.map(stat => (
           <Card key={stat.label} style={{ padding: '18px 20px' }} className={`fade-up ${stat.delay}`}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -151,8 +155,12 @@ export default function Dashboard() {
       </div>
 
       {/* Chart + AI summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, marginBottom: 24 }}
-        className="lg:grid-cols-[1fr_340px] grid-cols-1">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: 16,
+        marginBottom: 24,
+      }}>
 
         {/* Revenue chart */}
         <Card className="fade-up delay-3" style={{ padding: '20px 24px' }}>
@@ -179,7 +187,7 @@ export default function Dashboard() {
                   interval={6}
                 />
                 <YAxis
-                  tickFormatter={v => `$${(v/1000).toFixed(0)}k`}
+                  tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
                   tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'DM Sans' }}
                   tickLine={false}
                   axisLine={false}
@@ -283,8 +291,11 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom row — top products + restock */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
-        className="lg:grid-cols-2 grid-cols-1">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: 16,
+      }}>
 
         {/* Top products */}
         <Card className="fade-up delay-5" style={{ padding: '20px 24px' }}>
@@ -348,8 +359,8 @@ export default function Dashboard() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {alertsData.critical?.map(p => <RestockRow key={p._id} product={p} variant="red" />)}
-              {alertsData.warning?.map(p  => <RestockRow key={p._id} product={p} variant="amber" />)}
-              {alertsData.watch?.map(p    => <RestockRow key={p._id} product={p} variant="blue" />)}
+              {alertsData.warning?.map(p => <RestockRow key={p._id} product={p} variant="amber" />)}
+              {alertsData.watch?.map(p => <RestockRow key={p._id} product={p} variant="blue" />)}
             </div>
           )}
         </Card>
@@ -374,9 +385,9 @@ export default function Dashboard() {
 
 function RestockRow({ product, variant }) {
   const colors = {
-    red:   { bg: 'var(--red-bg)',   color: 'var(--red)'   },
+    red: { bg: 'var(--red-bg)', color: 'var(--red)' },
     amber: { bg: 'var(--amber-bg)', color: 'var(--amber)' },
-    blue:  { bg: 'var(--blue-bg)',  color: 'var(--blue)'  },
+    blue: { bg: 'var(--blue-bg)', color: 'var(--blue)' },
   };
   const c = colors[variant];
   return (
