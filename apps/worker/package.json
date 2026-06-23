@@ -7,11 +7,11 @@
     "dev": "nodemon src/worker.js"
   },
   "dependencies": {
-    "@sendgrid/mail": "^8.1.6",
     "@shopify-autopilot/shared": "*",
     "dotenv": "^16.4.5",
     "mongoose": "^8.3.0",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "resend": "^6.14.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

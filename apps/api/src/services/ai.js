@@ -17,7 +17,7 @@ function getGeminiClient() {
 
 /**
  * Generate or return cached AI summary for a tenant.
- * Uses Gemini 1.5 Flash — free tier, fast, good at structured JSON output.
+ * Uses Gemini 2.5 Flash — fast, free-tier friendly, good at structured JSON output.
  */
 async function getAiSummary(tenantId, metricsData) {
   const now = new Date();
@@ -40,7 +40,7 @@ async function getAiSummary(tenantId, metricsData) {
   try {
     const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature:      0.3,
         maxOutputTokens:  600,

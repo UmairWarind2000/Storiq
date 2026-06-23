@@ -15,7 +15,8 @@ module.exports = {
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-  SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,
+  RESEND_API_KEY:    process.env.RESEND_API_KEY,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
 
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
