@@ -20,7 +20,7 @@ function issueToken(tenantId) {
   return jwt.sign({ tenantId }, JWT_SECRET, { expiresIn: '7d' });
 }
 
-// GET /api/auth/shopify?shop=mystore.myshopify.com
+// ─── STEP 1: Merchant clicks "Install" on Shopify ────────────────────────────
 router.get('/shopify', (req, res) => {
   const { shop } = req.query;
 
@@ -42,7 +42,7 @@ router.get('/shopify', (req, res) => {
   res.redirect(authUrl);
 });
 
-// GET /api/auth/shopify/callback
+// ─── STEP 2: Shopify redirects back after merchant approves ──────────────────
 router.get('/shopify/callback', async (req, res) => {
   const { shop, code, state, hmac } = req.query;
 
@@ -108,7 +108,7 @@ router.get('/shopify/callback', async (req, res) => {
   }
 });
 
-// GET /api/auth/me
+// ─── GET /api/auth/me ────────────────────────────────────────────────────────
 router.get('/me', require('../middleware/tenant'), async (req, res) => {
   res.json({
     tenantId: req.tenantId,
@@ -117,34 +117,44 @@ router.get('/me', require('../middleware/tenant'), async (req, res) => {
   });
 });
 
-// DEV ONLY
-if (NODE_ENV === 'development') {
-  router.post('/dev-token', async (req, res, next) => {
-    try {
-      const { tenantId, plan } = req.body;
-      if (!tenantId) return res.status(400).json({ error: 'tenantId required' });
+// ─── DEMO LOGIN — works in production too, but only for the fixed demo store ──
+// In development, allows ANY tenantId for convenient testing.
+// In production, only allows the fixed demo-store tenant to prevent abuse
+// of your live API by random visitors creating arbitrary fake stores.
+router.post('/dev-token', async (req, res, next) => {
+  try {
+    const { tenantId, plan } = req.body;
 
-      await Store.findOneAndUpdate(
-        { tenantId },
-        {
-          tenantId,
-          accessToken: 'dev-token',
-          shopName:    tenantId,
-          plan:        plan || 'free',  // ← accepts plan from request body
-        },
-        { upsert: true, new: true }
-      );
-
-      res.json({
-        token:    issueToken(tenantId),
-        tenantId,
-        plan:     plan || 'free',
-      });
-    } catch (err) {
-      next(err);
+    if (!tenantId) {
+      return res.status(400).json({ error: 'tenantId required' });
     }
-  });
-}
+
+    if (NODE_ENV === 'production' && tenantId !== 'demo-store.myshopify.com') {
+      return res.status(403).json({
+        error: 'Demo login only available for demo-store.myshopify.com in production',
+      });
+    }
+
+    await Store.findOneAndUpdate(
+      { tenantId },
+      {
+        tenantId,
+        accessToken: 'dev-token',
+        shopName:    tenantId,
+        plan:        plan || 'free',
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({
+      token:    issueToken(tenantId),
+      tenantId,
+      plan:     plan || 'free',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;
 module.exports.issueToken = issueToken;

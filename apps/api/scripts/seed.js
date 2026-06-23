@@ -1,8 +1,9 @@
+// apps/api/scripts/seed.js
 require('dotenv').config({ path: '../../../.env' });
 const mongoose = require('mongoose');
 const { Order, Product, Store } = require('@shopify-autopilot/shared');
 
-const TENANT = 'test-store.myshopify.com';
+const TENANT = 'demo-store.myshopify.com';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/shopify_autopilot';
 
 async function seed() {
@@ -11,7 +12,7 @@ async function seed() {
 
   await Store.findOneAndUpdate(
     { tenantId: TENANT },
-    { tenantId: TENANT, accessToken: 'dev-token', shopName: 'test-store', plan: 'free' },
+    { tenantId: TENANT, accessToken: 'dev-token', shopName: 'demo-store', plan: 'free' },
     { upsert: true }
   );
 
@@ -21,8 +22,8 @@ async function seed() {
   const products = await Product.insertMany([
     { tenantId: TENANT, shopifyProductId: 'p1', title: 'Classic White Tee',  price: 29.99,  inventory: 150, status: 'active', velocityPerDay: 4.2, unitsSold7d: 29, unitsSold30d: 124 },
     { tenantId: TENANT, shopifyProductId: 'p2', title: 'Slim Fit Jeans',     price: 79.99,  inventory: 80,  status: 'active', velocityPerDay: 2.8, unitsSold7d: 19, unitsSold30d: 84  },
-    { tenantId: TENANT, shopifyProductId: 'p3', title: 'Running Sneakers',   price: 119.99, inventory: 45,  status: 'active', velocityPerDay: 1.4, unitsSold7d: 10, unitsSold30d: 42  },
-    { tenantId: TENANT, shopifyProductId: 'p4', title: 'Leather Wallet',     price: 49.99,  inventory: 200, status: 'active', velocityPerDay: 0.3, unitsSold7d: 2,  unitsSold30d: 9   },
+    { tenantId: TENANT, shopifyProductId: 'p3', title: 'Running Sneakers',   price: 119.99, inventory: 8,   status: 'active', velocityPerDay: 1.4, unitsSold7d: 10, unitsSold30d: 42, daysUntilStockout: 5 },
+    { tenantId: TENANT, shopifyProductId: 'p4', title: 'Leather Wallet',     price: 49.99,  inventory: 15,  status: 'active', velocityPerDay: 1.3, unitsSold7d: 9,  unitsSold30d: 30, daysUntilStockout: 11 },
     { tenantId: TENANT, shopifyProductId: 'p5', title: 'Wool Winter Scarf',  price: 39.99,  inventory: 300, status: 'active', velocityPerDay: 0.1, unitsSold7d: 1,  unitsSold30d: 3   },
   ]);
 
@@ -49,17 +50,17 @@ async function seed() {
         createdAtShopify: date,
         lineItems: [{
           shopifyProductId: product.shopifyProductId,
-          title:            product.title,
+          title:    product.title,
           quantity,
-          price:            product.price,
+          price:    product.price,
         }],
       });
     }
   }
 
   await Order.insertMany(orders);
-  console.log(`Seeded ${products.length} products and ${orders.length} orders`);
 
+  console.log(`Seeded ${products.length} products and ${orders.length} orders for ${TENANT}`);
   await mongoose.disconnect();
   process.exit(0);
 }

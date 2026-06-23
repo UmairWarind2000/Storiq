@@ -1,10 +1,10 @@
 // apps/web/src/pages/Login.jsx
 import { useState, useEffect } from 'react';
-import { Zap, ArrowRight, Store, Mail, Phone, Building2 } from 'lucide-react';
+import { Zap, ArrowRight, Store, Mail, Phone } from 'lucide-react';
 
 export default function Login() {
-  const [shop, setShop]       = useState('');
-  const [loading, setLoading] = useState(false);
+  const [shop, setShop]         = useState('');
+  const [loading, setLoading]   = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -24,15 +24,34 @@ export default function Login() {
     setLoading(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const res  = await fetch(`${apiUrl}/api/auth/dev-token`, {
+      const res = await fetch(`${apiUrl}/api/auth/dev-token`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ tenantId: 'demo-store.myshopify.com' }),
       });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Demo login failed:', errData.error || res.statusText);
+        alert(errData.error || 'Demo login failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       const data = await res.json();
+
+      if (!data.token) {
+        console.error('No token returned from server');
+        alert('Demo login failed — no token received.');
+        setLoading(false);
+        return;
+      }
+
       localStorage.setItem('token', data.token);
       window.location.href = '/dashboard';
-    } catch {
+    } catch (err) {
+      console.error('Demo login error:', err);
+      alert('Could not reach the server. Please try again.');
       setLoading(false);
     }
   }
@@ -45,7 +64,6 @@ export default function Login() {
       flexDirection: 'column',
     }}>
 
-      {/* ── Top nav bar ── */}
       <header style={{
         height: 56,
         borderBottom: '1px solid var(--border)',
@@ -67,14 +85,12 @@ export default function Login() {
         <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.4px' }}>Storiq</span>
       </header>
 
-      {/* ── Main layout ── */}
       <div style={{
         flex: 1,
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
       }}>
 
-        {/* Left / Top — login form */}
         <div style={{
           flex: 1,
           display: 'flex',
@@ -104,7 +120,6 @@ export default function Login() {
             AI-powered analytics, campaigns, and recovery — all running automatically in the background.
           </p>
 
-          {/* Demo notice */}
           <div style={{
             background: 'var(--bg-subtle)',
             border: '1px solid var(--border)',
@@ -132,7 +147,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Shop input */}
           <div style={{ marginBottom: 10 }}>
             <label style={{
               fontSize: 12, fontWeight: 500,
@@ -202,7 +216,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Divider */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12,
             margin: '16px 0',
@@ -212,7 +225,6 @@ export default function Login() {
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
 
-          {/* Dev login */}
           <button
             onClick={handleDevLogin}
             disabled={loading}
@@ -257,7 +269,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Right / Bottom — info panel */}
         <div style={{
           flex: isMobile ? 'none' : 1,
           background: 'var(--accent)',
@@ -267,10 +278,8 @@ export default function Login() {
           padding: isMobile ? '28px 20px' : '48px 56px',
           position: 'relative',
           overflow: 'hidden',
-          minHeight: isMobile ? 'auto' : 'auto',
         }}>
 
-          {/* Grid pattern */}
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
@@ -279,12 +288,11 @@ export default function Login() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
 
-            {/* Stat preview cards */}
             <div style={{ marginBottom: isMobile ? 20 : 32 }}>
               {[
-                { label: 'Revenue recovered',  value: '$12,480', sub: 'via cart recovery this month',  color: '#4ade80' },
-                { label: 'Campaigns running',  value: '3 active', sub: 'AI-generated discounts',        color: '#60a5fa' },
-                { label: 'Restock alerts',      value: '2 urgent', sub: 'Running Sneakers · 5 days left', color: '#fbbf24' },
+                { label: 'Revenue recovered',  value: '$12,480', sub: 'via cart recovery this month',   color: '#4ade80' },
+                { label: 'Campaigns running',  value: '3 active', sub: 'AI-generated discounts',         color: '#60a5fa' },
+                { label: 'Restock alerts',     value: '2 urgent', sub: 'Running Sneakers · 5 days left', color: '#fbbf24' },
               ].map((stat, i) => (
                 <div key={i} style={{
                   background: 'rgba(255,255,255,0.07)',
@@ -315,7 +323,6 @@ export default function Login() {
               ))}
             </div>
 
-            {/* Contact info strip */}
             <div style={{
               borderTop: '1px solid rgba(255,255,255,0.1)',
               paddingTop: 16,
@@ -343,7 +350,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ── Footer ── */}
       <footer style={{
         borderTop: '1px solid var(--border)',
         background: 'var(--bg-card)',
