@@ -1,26 +1,31 @@
 // apps/api/src/services/ai.js
-const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AiSummary } = require('@shopify-autopilot/shared');
-const { OPENAI_API_KEY } = require('../config/env');
+const { GEMINI_API_KEY } = require('../config/env');
 
-// Don't initialize at module load — initialize lazily on first call
-let openaiClient = null;
+let geminiClient = null;
 
-function getOpenAiClient() {
-  if (!openaiClient) {
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not set in environment variables');
+function getGeminiClient() {
+  if (!geminiClient) {
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not set in environment variables');
     }
-    openaiClient = new OpenAI({ apiKey: OPENAI_API_KEY });
+    geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
   }
-  return openaiClient;
+  return geminiClient;
 }
 
+/**
+ * Generate or return cached AI summary for a tenant.
+ * Uses Gemini 1.5 Flash — free tier, fast, good at structured JSON output.
+ */
 async function getAiSummary(tenantId, metricsData) {
   const now = new Date();
 
+  // 1. Return cached summary if still valid
   const cached = await AiSummary.findOne({ tenantId });
   if (cached && cached.expiresAt > now) {
+    console.log(`[AI] Returning cached summary for ${tenantId}`);
     return {
       summary:     cached.summary,
       topInsight:  cached.topInsight,
@@ -33,65 +38,64 @@ async function getAiSummary(tenantId, metricsData) {
   const prompt = buildPrompt(metricsData);
 
   try {
-    const openai = getOpenAiClient(); // only crashes here, not at startup
-
-    const response = await openai.chat.completions.create({
-      model:           'gpt-4o',
-      max_tokens:      600,
-      temperature:     0.3,
-      messages: [
-        {
-          role:    'system',
-          content: `You are an e-commerce analytics assistant. 
-You analyze store performance data and provide clear, actionable insights.
-Always respond with valid JSON matching the exact schema provided.
-Be specific with numbers. Keep language direct and professional.`,
-        },
-        { role: 'user', content: prompt },
-      ],
-      response_format: { type: 'json_object' },
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        temperature:      0.3,
+        maxOutputTokens:  600,
+        responseMimeType: 'application/json', // forces valid JSON output
+      },
     });
 
-    const parsed = JSON.parse(response.choices[0].message.content);
+    console.log(`[AI] Generating new summary for ${tenantId} via Gemini`);
 
-    const result = {
+    const result   = await model.generateContent(prompt);
+    const rawText  = result.response.text();
+    const parsed   = JSON.parse(rawText);
+
+    const summaryResult = {
       summary:     parsed.summary     || 'Summary unavailable.',
       topInsight:  parsed.topInsight  || 'No insight available.',
       alerts:      Array.isArray(parsed.alerts) ? parsed.alerts : [],
       generatedAt: now,
     };
 
+    // Cache for 24 hours
     await AiSummary.findOneAndUpdate(
       { tenantId },
-      { ...result, expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000) },
+      {
+        ...summaryResult,
+        expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      },
       { upsert: true, new: true }
     );
 
-    return { ...result, fromCache: false };
+    return { ...summaryResult, fromCache: false };
 
   } catch (err) {
-    console.error(`[AI] GPT-4o call failed:`, err.message);
+    console.error(`[AI] Gemini call failed for ${tenantId}:`, err.message);
+
     return {
-      summary:    'AI analysis temporarily unavailable. Your metrics are shown below.',
-      topInsight: null,
-      alerts:     [],
+      summary:     'AI analysis is temporarily unavailable. Your metrics are shown below.',
+      topInsight:  null,
+      alerts:      [],
       generatedAt: now,
-      fromCache:  false,
-      error:      true,
+      fromCache:   false,
+      error:       true,
     };
   }
 }
 
 /**
- * Build the GPT-4o prompt from aggregated metrics.
- * CRITICAL: Only aggregated numbers go in here — no customer emails,
- * no order IDs, no PII of any kind.
+ * Build the Gemini prompt from aggregated metrics.
+ * Only aggregated numbers go in here — no PII.
  */
 function buildPrompt(data) {
   const {
     revenue30d, revenue7d, orders30d, orders7d,
-    topProducts, slowProducts, revenueByDay,
-    activeCampaigns, currency = 'USD',
+    topProducts, slowProducts, activeCampaigns,
+    currency = 'USD',
   } = data;
 
   const avgOrderValue30d = orders30d > 0
@@ -102,7 +106,6 @@ function buildPrompt(data) {
     ? (((revenue7d / 7) / (revenue30d / 30) - 1) * 100).toFixed(1)
     : 0;
 
-  // Format top products for the prompt
   const topProductsList = (topProducts || [])
     .slice(0, 5)
     .map(p => `  - ${p.title}: ${p.unitsSold7d} units sold (last 7 days), velocity ${p.velocityPerDay?.toFixed(1)}/day`)
@@ -114,7 +117,7 @@ function buildPrompt(data) {
     .join('\n');
 
   return `
-Analyze this e-commerce store performance and respond with JSON.
+You are an e-commerce analytics assistant. Analyze this store performance data and respond with ONLY valid JSON, no markdown, no code fences, no extra text.
 
 STORE METRICS (last 30 days):
 - Total revenue: ${currency} ${revenue30d?.toFixed(2)}
@@ -131,18 +134,18 @@ ${topProductsList || '  No sales data yet'}
 SLOW MOVING PRODUCTS:
 ${slowProductsList || '  No slow products identified'}
 
-Respond ONLY with this exact JSON schema:
+Respond with EXACTLY this JSON schema and nothing else:
 {
-  "summary": "2-3 sentence plain English summary of overall store performance",
+  "summary": "2-3 sentence plain English summary of overall store performance, mention specific revenue numbers",
   "topInsight": "The single most important actionable insight for the store owner",
-  "alerts": ["alert 1 if any", "alert 2 if any"]
+  "alerts": ["alert 1 if any real issue exists", "alert 2 if any"]
 }
 
 Rules:
 - summary: factual, mention specific revenue numbers
 - topInsight: one clear action the owner should take
-- alerts: 0-3 items, only real issues (low stock, declining revenue, etc)
-- No markdown, no asterisks, plain text only
+- alerts: 0-3 items, only real issues (low stock, declining revenue, etc), empty array if none
+- No markdown, no asterisks, plain text only inside the JSON values
 `;
 }
 

@@ -10,6 +10,7 @@
     "@bull-board/api": "^7.1.5",
     "@bull-board/express": "^7.1.5",
     "@bull-board/ui": "^7.1.5",
+    "@google/generative-ai": "^0.24.1",
     "@sendgrid/mail": "^8.1.6",
     "@shopify-autopilot/shared": "*",
     "axios": "^1.16.1",
@@ -22,7 +23,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.3.0",
     "morgan": "^1.10.0",
-    "openai": "^6.42.0",
     "stripe": "^22.2.0"
   },
   "devDependencies": {

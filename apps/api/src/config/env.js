@@ -12,7 +12,7 @@ module.exports = {
   SHOPIFY_SCOPES: process.env.SHOPIFY_SCOPES || 'read_orders,read_products,write_price_rules,read_inventory',
   APP_URL: process.env.APP_URL || 'http://localhost:3001',
 
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,

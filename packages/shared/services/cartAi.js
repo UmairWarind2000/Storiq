@@ -1,53 +1,49 @@
 // packages/shared/services/cartAi.js
+let geminiClient = null;
 
-let openaiClient = null;
-
-function getOpenAiClient() {
-  if (!openaiClient) {
-    const OpenAI = require('openai');
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-    openaiClient = new OpenAI({ apiKey });
+function getGeminiClient() {
+  if (!geminiClient) {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('GEMINI_API_KEY not set');
+    geminiClient = new GoogleGenerativeAI(apiKey);
   }
-  return openaiClient;
+  return geminiClient;
 }
 
 /**
- * Generate a personalized abandoned cart recovery email.
- * Falls back to a template if OpenAI key is missing.
+ * Generate a personalized abandoned cart recovery email via Gemini.
+ * Falls back to a template if GEMINI_API_KEY is missing.
  */
 async function generateCartRecoveryEmail({ customerEmail, lineItems, totalValue, storeName }) {
-  if (!process.env.OPENAI_API_KEY) {
-    console.log('[CartAI] No API key — using template email');
+  if (!process.env.GEMINI_API_KEY) {
+    console.log('[CartAI] No Gemini API key — using template email');
     return templateEmail({ customerEmail, lineItems, totalValue, storeName });
   }
 
   try {
-    const openai = getOpenAiClient();
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        temperature:      0.6,
+        maxOutputTokens:  400,
+        responseMimeType: 'application/json',
+      },
+    });
 
     const productList = lineItems
       .map(i => `${i.productTitle} (qty: ${i.quantity}, $${i.price})`)
       .join(', ');
 
-    const response = await openai.chat.completions.create({
-      model:       'gpt-4o',
-      max_tokens:  400,
-      temperature: 0.6,
-      messages: [
-        {
-          role:    'system',
-          content: `You are a friendly e-commerce email copywriter.
-Write short, warm, non-pushy abandoned cart recovery emails.
-Always respond with valid JSON.`,
-        },
-        {
-          role: 'user',
-          content: `Write an abandoned cart recovery email for:
-- Store: ${storeName || 'our store'}
-- Cart total: $${totalValue?.toFixed(2)}
-- Items: ${productList}
+    const prompt = `
+You are a friendly e-commerce email copywriter. Write a short, warm, non-pushy abandoned cart recovery email. Respond with ONLY valid JSON, no markdown, no code fences.
 
-Respond with this exact JSON:
+Store: ${storeName || 'our store'}
+Cart total: $${totalValue?.toFixed(2)}
+Items: ${productList}
+
+Respond with EXACTLY this JSON schema and nothing else:
 {
   "subject": "email subject line",
   "body": "2-3 sentence plain text email body"
@@ -56,22 +52,22 @@ Respond with this exact JSON:
 Rules:
 - Friendly and conversational tone
 - Mention one specific product by name
-- No discount offers (we save those for follow-up)
-- No markdown or HTML in the body`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-    });
+- No discount offers
+- No markdown or HTML in the body, plain text only
+`;
 
-    const parsed = JSON.parse(response.choices[0].message.content);
+    const result  = await model.generateContent(prompt);
+    const rawText = result.response.text();
+    const parsed  = JSON.parse(rawText);
+
     return {
-      subject: parsed.subject || `You left something behind`,
+      subject: parsed.subject || 'You left something behind',
       html:    `<p>${parsed.body}</p>`,
       text:    parsed.body,
     };
 
   } catch (err) {
-    console.error('[CartAI] GPT-4o failed:', err.message);
+    console.error('[CartAI] Gemini call failed:', err.message);
     return templateEmail({ customerEmail, lineItems, totalValue, storeName });
   }
 }

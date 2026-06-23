@@ -1,50 +1,49 @@
 // packages/shared/services/campaignAi.js
-let openaiClient = null;
+let geminiClient = null;
 
-function getOpenAiClient() {
-  if (!openaiClient) {
-    const OpenAI = require('openai');
-    const apiKey = process.env.OPENAI_API_KEY;  // read directly from process.env
+function getGeminiClient() {
+  if (!geminiClient) {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is not set');
+      throw new Error('GEMINI_API_KEY is not set');
     }
-    openaiClient = new OpenAI({ apiKey });
+    geminiClient = new GoogleGenerativeAI(apiKey);
   }
-  return openaiClient;
+  return geminiClient;
 }
 
+/**
+ * Analyze slow products and recommend discount campaigns via Gemini.
+ * Falls back to mock recommendations if GEMINI_API_KEY is missing.
+ */
 async function recommendCampaigns(slowProducts) {
-  if (!process.env.OPENAI_API_KEY) {
-    console.log('[CampaignAI] No API key — using mock recommendations');
+  if (!process.env.GEMINI_API_KEY) {
+    console.log('[CampaignAI] No Gemini API key — using mock recommendations');
     return mockRecommendations(slowProducts);
   }
 
   try {
-    const openai = getOpenAiClient();
-    const prompt = buildCampaignPrompt(slowProducts);
-
-    const response = await openai.chat.completions.create({
-      model:           'gpt-4o',
-      max_tokens:      800,
-      temperature:     0.2,
-      messages: [
-        {
-          role:    'system',
-          content: `You are an e-commerce pricing strategist.
-Analyze slow-moving products and recommend discount campaigns.
-Always respond with valid JSON matching the exact schema provided.
-Be conservative with discounts — recommend the minimum needed to drive sales.`,
-        },
-        { role: 'user', content: prompt },
-      ],
-      response_format: { type: 'json_object' },
+    const genAI = getGeminiClient();
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        temperature:      0.2,
+        maxOutputTokens:  800,
+        responseMimeType: 'application/json',
+      },
     });
 
-    const parsed = JSON.parse(response.choices[0].message.content);
+    const prompt = buildCampaignPrompt(slowProducts);
+
+    const result  = await model.generateContent(prompt);
+    const rawText = result.response.text();
+    const parsed  = JSON.parse(rawText);
+
     return parsed.recommendations || [];
 
   } catch (err) {
-    console.error('[CampaignAI] GPT-4o failed:', err.message);
+    console.error('[CampaignAI] Gemini call failed:', err.message);
     return mockRecommendations(slowProducts);
   }
 }
@@ -56,12 +55,12 @@ function buildCampaignPrompt(products) {
   ).join('\n');
 
   return `
-Analyze these slow-moving products and recommend discount campaigns.
+You are an e-commerce pricing strategist. Analyze these slow-moving products and recommend discount campaigns. Respond with ONLY valid JSON, no markdown, no code fences.
 
 SLOW PRODUCTS:
 ${productList}
 
-Respond with this exact JSON:
+Respond with EXACTLY this JSON schema and nothing else:
 {
   "recommendations": [
     {
@@ -79,8 +78,10 @@ Rules:
 - Only recommend products that genuinely need a boost
 - discountPct: between 10 and 40 only
 - durationDays: 7, 14, or 30 only
-- confidenceScore: 0.0 to 1.0
+- confidenceScore: 0.0 to 1.0 (how confident you are this will help)
+- If a product is fine, exclude it from recommendations
 - Max 3 recommendations
+- Be conservative — recommend the minimum discount needed to drive sales
 `;
 }
 
