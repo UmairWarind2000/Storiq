@@ -16,6 +16,35 @@ function getGeminiClient() {
 }
 
 /**
+ * Safely parse JSON from Gemini, handling common formatting issues:
+ * - markdown code fences (```json ... ```)
+ * - truncated output
+ * - leading/trailing whitespace or text
+ */
+function safeParseJson(rawText) {
+  let cleaned = rawText.trim();
+
+  // Strip markdown code fences if present
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+
+  // Try direct parse first
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    // Try extracting the first { ... } block in case of extra text around it
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (err2) {
+        throw new Error(`JSON parse failed even after cleanup: ${err2.message}`);
+      }
+    }
+    throw new Error(`JSON parse failed: ${err.message}`);
+  }
+}
+
+/**
  * Generate or return cached AI summary for a tenant.
  * Uses Gemini 2.5 Flash — fast, free-tier friendly, good at structured JSON output.
  */
@@ -43,16 +72,24 @@ async function getAiSummary(tenantId, metricsData) {
       model: 'gemini-2.5-flash',
       generationConfig: {
         temperature:      0.3,
-        maxOutputTokens:  600,
-        responseMimeType: 'application/json', // forces valid JSON output
+        maxOutputTokens:  2048,           // ← raised from 600 to avoid truncation
+        responseMimeType: 'application/json',
       },
     });
 
     console.log(`[AI] Generating new summary for ${tenantId} via Gemini`);
 
-    const result   = await model.generateContent(prompt);
-    const rawText  = result.response.text();
-    const parsed   = JSON.parse(rawText);
+    const result  = await model.generateContent(prompt);
+    const rawText = result.response.text();
+
+    let parsed;
+    try {
+      parsed = safeParseJson(rawText);
+    } catch (parseErr) {
+      console.error(`[AI] Failed to parse Gemini response for ${tenantId}:`, parseErr.message);
+      console.error(`[AI] Raw response was:`, rawText);
+      throw parseErr;
+    }
 
     const summaryResult = {
       summary:     parsed.summary     || 'Summary unavailable.',
@@ -119,6 +156,8 @@ function buildPrompt(data) {
   return `
 You are an e-commerce analytics assistant. Analyze this store performance data and respond with ONLY valid JSON, no markdown, no code fences, no extra text.
 
+Keep the JSON values SHORT and CONCISE — summary under 40 words, topInsight under 25 words, each alert under 20 words. This is important to keep the response compact.
+
 STORE METRICS (last 30 days):
 - Total revenue: ${currency} ${revenue30d?.toFixed(2)}
 - Total orders: ${orders30d}
@@ -136,15 +175,16 @@ ${slowProductsList || '  No slow products identified'}
 
 Respond with EXACTLY this JSON schema and nothing else:
 {
-  "summary": "2-3 sentence plain English summary of overall store performance, mention specific revenue numbers",
-  "topInsight": "The single most important actionable insight for the store owner",
-  "alerts": ["alert 1 if any real issue exists", "alert 2 if any"]
+  "summary": "short plain English summary of overall store performance, mention specific revenue numbers, under 40 words",
+  "topInsight": "the single most important actionable insight, under 25 words",
+  "alerts": ["short alert under 20 words if any real issue exists"]
 }
 
 Rules:
+- Keep all text SHORT to avoid truncation
 - summary: factual, mention specific revenue numbers
 - topInsight: one clear action the owner should take
-- alerts: 0-3 items, only real issues (low stock, declining revenue, etc), empty array if none
+- alerts: 0-3 items, only real issues, empty array if none
 - No markdown, no asterisks, plain text only inside the JSON values
 `;
 }

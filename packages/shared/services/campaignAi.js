@@ -13,6 +13,21 @@ function getGeminiClient() {
   return geminiClient;
 }
 
+function safeParseJson(rawText) {
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { return JSON.parse(match[0]); }
+      catch (err2) { throw new Error(`JSON parse failed: ${err2.message}`); }
+    }
+    throw new Error(`JSON parse failed: ${err.message}`);
+  }
+}
+
 /**
  * Analyze slow products and recommend discount campaigns via Gemini.
  * Falls back to mock recommendations if GEMINI_API_KEY is missing.
@@ -29,7 +44,7 @@ async function recommendCampaigns(slowProducts) {
       model: 'gemini-2.5-flash',
       generationConfig: {
         temperature:      0.2,
-        maxOutputTokens:  800,
+        maxOutputTokens:  1500,
         responseMimeType: 'application/json',
       },
     });
@@ -38,7 +53,7 @@ async function recommendCampaigns(slowProducts) {
 
     const result  = await model.generateContent(prompt);
     const rawText = result.response.text();
-    const parsed  = JSON.parse(rawText);
+    const parsed = safeParseJson(rawText);
 
     return parsed.recommendations || [];
 

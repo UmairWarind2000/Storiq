@@ -11,6 +11,21 @@ function getGeminiClient() {
   return geminiClient;
 }
 
+function safeParseJson(rawText) {
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { return JSON.parse(match[0]); }
+      catch (err2) { throw new Error(`JSON parse failed: ${err2.message}`); }
+    }
+    throw new Error(`JSON parse failed: ${err.message}`);
+  }
+}
+
 /**
  * Generate a personalized abandoned cart recovery email via Gemini.
  * Falls back to a template if GEMINI_API_KEY is missing.
@@ -27,7 +42,7 @@ async function generateCartRecoveryEmail({ customerEmail, lineItems, totalValue,
       model: 'gemini-2.5-flash',
       generationConfig: {
         temperature:      0.6,
-        maxOutputTokens:  400,
+        maxOutputTokens:  800,
         responseMimeType: 'application/json',
       },
     });
@@ -58,7 +73,7 @@ Rules:
 
     const result  = await model.generateContent(prompt);
     const rawText = result.response.text();
-    const parsed  = JSON.parse(rawText);
+    const parsed = safeParseJson(rawText);
 
     return {
       subject: parsed.subject || 'You left something behind',
